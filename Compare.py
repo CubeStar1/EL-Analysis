@@ -17,6 +17,11 @@ def load_data():
     df['Phase 3'] = pd.to_numeric(df['Phase 3'], errors='coerce')
     return df
 
+def create_batches(df, batch_size=20):
+    df = df.sort_values('Team Name').reset_index(drop=True)
+    df['Batch'] = (df.index // batch_size) + 1
+    return df
+
 df = load_data()
 st.title('EL Performance Analysis')
 st.sidebar.header('Filter Data')
@@ -27,18 +32,16 @@ if filter_option == 'Theme':
 else:
     selected_filter = st.sidebar.selectbox('Select Branch:', ['All'] + list(df['Branch'].unique()))
 
-
 if selected_filter != 'All':
     filtered_df = df[df[filter_option] == selected_filter]
-    filtered_df = filtered_df.sort_values('Team Name')
+    filtered_df = create_batches(filtered_df)
 else:
     filtered_df = df
 
 st.subheader('Filtered Data')
 st.dataframe(filtered_df, use_container_width=True)
 
-
-with st.container():
+with st.container(border=True):
     st.subheader('Total Marks Statistics')
     total_stats = filtered_df['Total'].agg(['mean', 'median', 'min', 'max'])
     st.dataframe(total_stats, use_container_width=True)
@@ -48,7 +51,7 @@ with st.container():
     phase_data.columns = ['Phase', 'Average Marks']
     st.bar_chart(phase_data.set_index('Phase'))
 
-with st.container():
+with st.container(border=True):
     st.subheader('Comparison by Theme')
     themes = df['Theme'].unique()
     hist_data = [df[df['Theme'] == theme]['Total'].dropna().tolist() for theme in themes]
@@ -66,11 +69,12 @@ with st.container():
     theme_stats = df.groupby('Theme')['Total'].agg(['mean', 'median', 'min', 'max'])
     st.dataframe(theme_stats, use_container_width=True)
 
-# New Streamlit page comparing average and median scores across batches for a particular theme
-st.subheader('Comparison by Batch for Selected Theme')
-if filter_option == 'Theme' and selected_filter != 'All':
-    batch_data = filtered_df.groupby('Batch')['Total'].agg(['mean', 'median']).reset_index()
-    batch_data.columns = ['Batch', 'Average Marks', 'Median Marks']
-    st.line_chart(batch_data.set_index('Batch'))
-else:
-    st.write("Please select a specific theme to view batch-wise comparison.")
+with st.container(border=True):
+    st.subheader('Comparison by Batch for Selected Theme')
+    if filter_option == 'Theme' and selected_filter != 'All':
+        batch_data = filtered_df.groupby('Batch')['Total'].agg(['mean', 'median']).reset_index()
+        batch_data.columns = ['Batch', 'Average Marks', 'Median Marks']
+        st.dataframe(batch_data, use_container_width=True, hide_index=True)
+        st.bar_chart(batch_data.set_index('Batch'))
+    else:
+        st.write("Please select a specific theme to view batch-wise comparison.")
